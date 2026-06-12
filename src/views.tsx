@@ -168,24 +168,21 @@ update();
         ブラウザ版の雀魂で牌譜を開くと、ユーザースクリプトが対局データを自動でこのサーバーへ送信します。
         メンバーの誰か1人が以下のセットアップをすればOKです。
       </p>
-      <h3>初回セットアップ</h3>
+      <h3>初回セットアップ（Chrome拡張）</h3>
       <ol>
         <li>
-          ブラウザに <strong>Tampermonkey</strong> 拡張機能をインストールする
-          <br />
-          <span class="muted">
-            Chromeの場合は chrome://extensions で「デベロッパーモード」をONにする必要あり
-          </span>
-        </li>
-        <li>
-          APIキーを入力:{" "}
-          <input id="key" type="password" placeholder="管理者から教えてもらったAPIキー" />
-        </li>
-        <li>
-          <a id="install" class="bookmarklet" href="/uploader.user.js?key=YOUR_API_KEY">
-            ユーザースクリプトをインストール
+          <a class="bookmarklet" href="/majsoul-log-extension.zip">
+            拡張機能をダウンロード
           </a>
-          {" "}をクリック → Tampermonkeyの確認画面で「インストール」
+          {" "}→ zipを展開する
+        </li>
+        <li>
+          chrome://extensions を開き、右上の「デベロッパーモード」をON →
+          「パッケージ化されていない拡張機能を読み込む」で展開したフォルダを選択
+        </li>
+        <li>
+          ツールバーの拡張アイコンをクリックし、サーバーURL（このサイトのURL）と
+          APIキー（管理者から教えてもらったもの）を入力して保存
         </li>
       </ol>
       <h3>毎回の操作</h3>
@@ -197,6 +194,14 @@ update();
       <p class="muted">
         対象は友人戦の4人麻雀（2026/06/13以降）のみで、それ以外を開いた場合はエラー表示になります。
         同じ牌譜を何度開いても二重記録はされません。
+      </p>
+      <h3>代替: Tampermonkey版</h3>
+      <p>
+        Tampermonkeyを使っている場合はユーザースクリプト版もあります。 APIキーを入力:{" "}
+        <input id="key" type="password" placeholder="APIキー" />{" "}
+        <a id="install" href="/uploader.user.js?key=YOUR_API_KEY">
+          ユーザースクリプトをインストール
+        </a>
       </p>
       <script dangerouslySetInnerHTML={{ __html: script }} />
     </Layout>

@@ -19,6 +19,11 @@ jobs:
       - name: Run tests
         run: pnpm test
 
+      - name: Build extension zip
+        run: |
+          pnpm --filter @majsoul-log-bot/extension zip
+          cp extension/.output/*-chrome.zip public/majsoul-log-extension.zip
+
       - name: Run D1 Migrations
         run: pnpm exec wrangler d1 migrations apply majsoul-log --remote
 
