@@ -87,6 +87,27 @@ export async function saveGame(db: D1Database, game: ParsedGame): Promise<boolea
   return true;
 }
 
+export interface PointHistoryRow {
+  uuid: string;
+  start_time: number;
+  account_id: number;
+  nickname: string;
+  point: number;
+}
+
+export async function fetchPointHistory(db: D1Database): Promise<PointHistoryRow[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT g.uuid, g.start_time, r.account_id, p.nickname, r.point
+      FROM games g
+      JOIN game_results r ON r.game_uuid = g.uuid
+      JOIN players p ON p.account_id = r.account_id
+      ORDER BY g.start_time ASC, g.uuid ASC`,
+    )
+    .all<PointHistoryRow>();
+  return results;
+}
+
 export async function deleteGame(db: D1Database, uuid: string): Promise<boolean> {
   const results = await db.batch([
     db.prepare("DELETE FROM game_results WHERE game_uuid = ?").bind(uuid),

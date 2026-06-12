@@ -110,9 +110,30 @@ describe("parsePaipu", () => {
       },
     ];
     const game = parsePaipu({ head, records: recs });
-    expect(game.results).toHaveLength(1);
-    expect(game.results[0].riichiCount).toBe(1);
-    expect(game.results[0].dealInCount).toBe(1);
+    expect(game.results).toHaveLength(4);
+    const seat0 = game.results.find((r) => r.seat === 0)!;
+    expect(seat0.riichiCount).toBe(1);
+    expect(seat0.dealInCount).toBe(1);
+    const seat1 = game.results.find((r) => r.seat === 1)!;
+    expect(seat1.winCount).toBe(1);
+  });
+
+  it("アカウントのない席はCPU1, CPU2…として記録する", () => {
+    const head = makeHead({
+      accounts: [
+        { account_id: 101, seat: 0, nickname: "A" },
+        { account_id: 102, seat: 2, nickname: "B" },
+      ],
+    });
+    const game = parsePaipu({ head, records });
+    expect(game.results).toHaveLength(4);
+    const cpus = game.players
+      .filter((p) => p.accountId < 0)
+      .sort((a, b) => a.seat - b.seat);
+    expect(cpus).toEqual([
+      { accountId: -1, seat: 1, nickname: "CPU1" },
+      { accountId: -2, seat: 3, nickname: "CPU2" },
+    ]);
   });
 
   it("同点の場合は順位点を等分する", () => {

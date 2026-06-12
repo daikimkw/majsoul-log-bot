@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { deleteGame, fetchGame, fetchGames, fetchPlayerStats, saveGame } from "./db";
+import { deleteGame, fetchGame, fetchGames, fetchPlayerStats, fetchPointHistory, saveGame } from "./db";
 import { PaipuError, parsePaipu, type PaipuInput } from "./parser";
 import { userscriptSource } from "./userscript";
 import { GamePage, GamesPage, SetupPage, StatsPage } from "./views";
@@ -39,8 +39,11 @@ app.post("/api/games", async (c) => {
 });
 
 app.get("/", async (c) => {
-  const stats = await fetchPlayerStats(c.env.DB);
-  return c.html(<StatsPage stats={stats} />);
+  const [stats, history] = await Promise.all([
+    fetchPlayerStats(c.env.DB),
+    fetchPointHistory(c.env.DB),
+  ]);
+  return c.html(<StatsPage stats={stats} history={history} />);
 });
 
 app.get("/setup", (c) => c.html(<SetupPage />));

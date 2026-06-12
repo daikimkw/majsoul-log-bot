@@ -1,5 +1,5 @@
 import type { FC, PropsWithChildren } from "hono/jsx";
-import type { GameListRow, GameResultRow, PlayerStatsRow } from "./db";
+import type { GameListRow, GameResultRow, PlayerStatsRow, PointHistoryRow } from "./db";
 
 const MODE_NAMES: Record<number, string> = { 1: "四人東", 2: "四人南" };
 
@@ -53,7 +53,92 @@ const PointCell: FC<{ point: number }> = ({ point }) => (
   <td class={point > 0 ? "pos" : point < 0 ? "neg" : ""}>{fmtPoint(point)}</td>
 );
 
-export const StatsPage: FC<{ stats: PlayerStatsRow[] }> = ({ stats }) => (
+const PALETTE = ["#2563eb", "#dc2626", "#16a34a", "#d97706", "#9333ea", "#0891b2", "#db2777", "#65a30d"];
+
+const PointChart: FC<{ history: PointHistoryRow[] }> = ({ history }) => {
+  const gameIds: string[] = [];
+  for (const row of history) {
+    if (gameIds[gameIds.length - 1] !== row.uuid) gameIds.push(row.uuid);
+  }
+  if (gameIds.length === 0) return null;
+  const gameIndex = new Map(gameIds.map((id, i) => [id, i]));
+
+  // プレイヤーごとに累計ポイント系列を作る（不参加の対局は横ばい）
+  const byPlayer = new Map<number, { name: string; deltas: Map<number, number> }>();
+  for (const row of history) {
+    let p = byPlayer.get(row.account_id);
+    if (!p) {
+      p = { name: row.nickname, deltas: new Map() };
+      byPlayer.set(row.account_id, p);
+    }
+    const i = gameIndex.get(row.uuid)!;
+    p.deltas.set(i, (p.deltas.get(i) ?? 0) + row.point);
+  }
+  let colorIdx = 0;
+  const series = [...byPlayer.entries()].map(([accountId, p]) => {
+    const ys = [0];
+    let cum = 0;
+    for (let i = 0; i < gameIds.length; i++) {
+      cum += p.deltas.get(i) ?? 0;
+      ys.push(Math.round(cum * 10) / 10);
+    }
+    const color =
+      accountId < 0 ? ["#888888", "#aaaaaa", "#666666"][-accountId - 1] || "#999999" : PALETTE[colorIdx++ % PALETTE.length];
+    return { name: p.name, color, ys, total: ys[ys.length - 1] };
+  });
+  series.sort((a, b) => b.total - a.total);
+
+  const W = 800;
+  const H = 300;
+  const PAD = { l: 56, r: 16, t: 12, b: 28 };
+  const innerW = W - PAD.l - PAD.r;
+  const innerH = H - PAD.t - PAD.b;
+  const allY = series.flatMap((s) => s.ys);
+  const yMax = Math.max(10, ...allY);
+  const yMin = Math.min(-10, ...allY);
+  const x = (i: number) => PAD.l + (gameIds.length === 0 ? 0 : (i / gameIds.length) * innerW);
+  const y = (v: number) => PAD.t + ((yMax - v) / (yMax - yMin)) * innerH;
+
+  const step = Math.max(10, Math.ceil((yMax - yMin) / 6 / 10) * 10);
+  const ticks: number[] = [];
+  for (let v = Math.ceil(yMin / step) * step; v <= yMax; v += step) ticks.push(v);
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} style="width:100%;max-width:1080px;font-size:11px">
+        {ticks.map((v) => (
+          <g>
+            <line x1={PAD.l} y1={y(v)} x2={W - PAD.r} y2={y(v)} stroke={v === 0 ? "#888" : "#8883"} stroke-width={v === 0 ? 1.5 : 1} />
+            <text x={PAD.l - 6} y={y(v) + 4} text-anchor="end" fill="#888">{v}</text>
+          </g>
+        ))}
+        <text x={PAD.l} y={H - 8} fill="#888">0戦</text>
+        <text x={W - PAD.r} y={H - 8} text-anchor="end" fill="#888">{gameIds.length}戦</text>
+        {series.map((s) => (
+          <polyline
+            points={s.ys.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ")}
+            fill="none"
+            stroke={s.color}
+            stroke-width="2"
+          />
+        ))}
+      </svg>
+      <p>
+        {series.map((s) => (
+          <span style="margin-right:16px;white-space:nowrap">
+            <span style={`display:inline-block;width:10px;height:10px;background:${s.color};margin-right:4px`} />
+            {s.name} ({s.total > 0 ? "+" : ""}{s.total.toFixed(1)})
+          </span>
+        ))}
+      </p>
+    </div>
+  );
+};
+
+export const StatsPage: FC<{ stats: PlayerStatsRow[]; history: PointHistoryRow[] }> = ({
+  stats,
+  history,
+}) => (
   <Layout>
     <h2>総合成績</h2>
     {stats.length === 0 ? (
@@ -100,9 +185,15 @@ export const StatsPage: FC<{ stats: PlayerStatsRow[] }> = ({ stats }) => (
         </tbody>
       </table>
     )}
+    {stats.length > 0 && (
+      <>
+        <h2>ポイント推移</h2>
+        <PointChart history={history} />
+      </>
+    )}
     <p class="muted">
       ポイントはMリーグ式（25,000点持ち30,000点返し・ウマ30-10・オカ20、同点は順位点を等分）。
-      和了率などの分母は局数です。
+      和了率などの分母は局数です。CPUは席順にCPU1, CPU2…として対局をまたいで合算されます。
     </p>
   </Layout>
 );

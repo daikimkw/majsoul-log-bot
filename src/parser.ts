@@ -82,10 +82,17 @@ export function parsePaipu(input: PaipuInput): ParsedGame {
   const stats = computeKyokuStats(input.records);
   const finals = computeFinalResults(head);
 
+  // アカウントのない席はCPU。席順にCPU1, CPU2…（account_id=-1, -2…）として記録し、
+  // 対局をまたいでも同じ番号同士で合算する
   const humanSeats = new Set(players.map((p) => p.seat));
-  const results: SeatResult[] = finals
-    .filter((f) => humanSeats.has(f.seat))
-    .map((f) => ({ ...f, ...stats[f.seat] }));
+  let cpuIndex = 0;
+  for (const f of [...finals].sort((a, b) => a.seat - b.seat)) {
+    if (!humanSeats.has(f.seat)) {
+      cpuIndex++;
+      players.push({ accountId: -cpuIndex, seat: f.seat, nickname: `CPU${cpuIndex}` });
+    }
+  }
+  const results: SeatResult[] = finals.map((f) => ({ ...f, ...stats[f.seat] }));
 
   return { uuid, startTime, endTime, mode, players, results };
 }
