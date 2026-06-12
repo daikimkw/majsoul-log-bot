@@ -6,13 +6,24 @@ Cloudflare Workers + Hono + D1 で動作する。
 ## 仕組み
 
 1. ブラウザ版の雀魂（game.mahjongsoul.com）にログインして牌譜を開く
-2. Tampermonkeyユーザースクリプトが `window.WebSocket` をフックしており、クライアントが受信する
+2. Chrome拡張（`extension/`、WXT製）が `window.WebSocket` をフックしており、クライアントが受信する
    `fetchGameRecord` レスポンスを複製 → 雀魂が配信する `liqi.json` + protobufjs でJSONにデコードし、
    `POST /api/games` へ自動送信
 3. Workerが牌譜を解析してD1に保存（友人戦・4人麻雀・2026/06/13以降のみ。重複は無視）
 4. Web画面で総合成績・対局一覧を閲覧
 
 集計内容: Mリーグ式ポイント（ウマ30-10・オカ20、同点は順位点を等分）、平均順位、着順分布、和了率・放銃率・立直率・副露率、平均和了点・平均放銃点。
+
+## 拡張機能の使い方
+
+```sh
+pnpm --filter @majsoul-log-bot/extension build
+```
+
+1. `chrome://extensions` でデベロッパーモードON →「パッケージ化されていない拡張機能を読み込む」で
+   `extension/.output/chrome-mv3` を選択
+2. 拡張アイコンのポップアップでサーバーURL（WorkerのURL）とAPIキーを保存
+3. 雀魂で牌譜を開くと自動送信され、「記録しました」と表示される
 
 ## セットアップ
 
