@@ -192,7 +192,7 @@ update();
         <li>画面上部に「記録しました」と緑の表示が出たら完了。このサイトに反映される</li>
       </ol>
       <p class="muted">
-        対象は友人戦の4人麻雀（2026/06/13以降）のみで、それ以外を開いた場合はエラー表示になります。
+        対象は友人戦の4人麻雀のみで、それ以外を開いた場合はエラー表示になります。
         同じ牌譜を何度開いても二重記録はされません。
       </p>
       <h3>代替: Tampermonkey版</h3>
@@ -208,7 +208,7 @@ update();
   );
 };
 
-export const GamePage: FC<{ rows: GameResultRow[] }> = ({ rows }) => (
+export const GamePage: FC<{ rows: GameResultRow[]; error?: string }> = ({ rows, error }) => (
   <Layout title="対局詳細">
     <h2>対局詳細</h2>
     <p>
@@ -255,5 +255,17 @@ export const GamePage: FC<{ rows: GameResultRow[] }> = ({ rows }) => (
       </tbody>
     </table>
     <p class="muted">全{rows[0].kyoku_count}局</p>
+    <details>
+      <summary class="muted">この対局を削除する</summary>
+      <form
+        method="post"
+        action={`/games/${rows[0].uuid}/delete`}
+        onsubmit="return confirm('この対局を削除します。よろしいですか？')"
+      >
+        <input type="password" name="key" placeholder="APIキー" required />{" "}
+        <button type="submit">削除</button>
+        {error && <span style="color:#cf222e;margin-left:8px">{error}</span>}
+      </form>
+    </details>
   </Layout>
 );

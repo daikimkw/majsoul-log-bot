@@ -34,9 +34,6 @@ export interface ParsedGame {
   results: SeatResult[];
 }
 
-// 2026-06-13 00:00 JST 以降の対局のみ記録
-export const MIN_START_TIME = Date.UTC(2026, 5, 12, 15, 0, 0) / 1000;
-
 // Mリーグ式: オカ20 + ウマ30-10 → +50 / +10 / -10 / -30
 const PLACEMENT_POINTS = [50, 10, -10, -30];
 
@@ -55,7 +52,7 @@ function numField(obj: unknown, key: string, def = 0): number {
   return Number(v);
 }
 
-export function parsePaipu(input: PaipuInput, minStartTime = MIN_START_TIME): ParsedGame {
+export function parsePaipu(input: PaipuInput): ParsedGame {
   const head = input.head;
   if (!head || !Array.isArray(input.records)) {
     throw new PaipuError("head または records がありません");
@@ -72,9 +69,6 @@ export function parsePaipu(input: PaipuInput, minStartTime = MIN_START_TIME): Pa
   if (mode !== 1 && mode !== 2) throw new PaipuError("4人麻雀（東風/半荘）ではありません");
 
   const startTime = numField(head, "start_time");
-  if (startTime < minStartTime) {
-    throw new PaipuError("記録対象期間（2026-06-13以降）より前の対局です");
-  }
   const endTime = numField(head, "end_time") || null;
 
   const accounts = field<unknown[]>(head, "accounts") ?? [];

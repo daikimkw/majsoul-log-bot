@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { fetchGame, fetchGames, fetchPlayerStats, saveGame } from "./db";
+import { deleteGame, fetchGame, fetchGames, fetchPlayerStats, saveGame } from "./db";
 import { PaipuError, parsePaipu, type PaipuInput } from "./parser";
 import { userscriptSource } from "./userscript";
 import { GamePage, GamesPage, SetupPage, StatsPage } from "./views";
@@ -56,6 +56,18 @@ app.get("/uploader.user.js", (c) => {
 app.get("/games", async (c) => {
   const games = await fetchGames(c.env.DB);
   return c.html(<GamesPage games={games} />);
+});
+
+app.post("/games/:uuid/delete", async (c) => {
+  const uuid = c.req.param("uuid");
+  const body = await c.req.parseBody();
+  if (body.key !== c.env.API_KEY) {
+    const rows = await fetchGame(c.env.DB, uuid);
+    if (rows.length === 0) return c.notFound();
+    return c.html(<GamePage rows={rows} error="APIキーが不正です" />, 401);
+  }
+  await deleteGame(c.env.DB, uuid);
+  return c.redirect("/games");
 });
 
 app.get("/games/:uuid", async (c) => {

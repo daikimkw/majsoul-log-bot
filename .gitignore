@@ -4,3 +4,4 @@ worker-configuration.d.ts
 extension/.output/
 extension/.wxt/
 public/*.zip
+.dev.vars

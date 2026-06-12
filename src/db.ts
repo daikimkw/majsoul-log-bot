@@ -87,6 +87,14 @@ export async function saveGame(db: D1Database, game: ParsedGame): Promise<boolea
   return true;
 }
 
+export async function deleteGame(db: D1Database, uuid: string): Promise<boolean> {
+  const results = await db.batch([
+    db.prepare("DELETE FROM game_results WHERE game_uuid = ?").bind(uuid),
+    db.prepare("DELETE FROM games WHERE uuid = ?").bind(uuid),
+  ]);
+  return (results[1].meta.changes ?? 0) > 0;
+}
+
 export async function fetchPlayerStats(db: D1Database): Promise<PlayerStatsRow[]> {
   const { results } = await db
     .prepare(

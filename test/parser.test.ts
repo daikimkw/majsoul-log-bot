@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { MIN_START_TIME, PaipuError, parsePaipu, type PaipuInput } from "../src/parser";
+import { PaipuError, parsePaipu, type PaipuInput } from "../src/parser";
 
-const START = MIN_START_TIME + 3600;
+const START = Date.UTC(2026, 5, 13) / 1000;
 
 function makeHead(over: Partial<Record<string, unknown>> = {}) {
   return {
@@ -187,8 +187,4 @@ describe("parsePaipu", () => {
     expect(() => parsePaipu({ head, records })).toThrow(/4人麻雀/);
   });
 
-  it("2026-06-13より前の対局は拒否する", () => {
-    const head = makeHead({ start_time: MIN_START_TIME - 1 });
-    expect(() => parsePaipu({ head, records })).toThrow(/期間/);
-  });
 });
