@@ -42,7 +42,7 @@ export const Layout: FC<PropsWithChildren<{ title?: string }>> = ({ title, child
       <nav>
         <a href="/">総合成績</a>
         <a href="/games">対局一覧</a>
-        <a href="/bookmarklet">記録のやり方</a>
+        <a href="/setup">記録のやり方</a>
       </nav>
       {children}
     </body>
@@ -151,13 +151,12 @@ export const GamesPage: FC<{ games: GameListRow[] }> = ({ games }) => {
   );
 };
 
-export const BookmarkletPage: FC<{ template: string }> = ({ template }) => {
+export const SetupPage: FC = () => {
   const script = `
-var TEMPLATE = ${JSON.stringify(template)};
-var link = document.getElementById("bm");
+var link = document.getElementById("install");
 var input = document.getElementById("key");
 function update() {
-  link.href = "javascript:" + encodeURIComponent(TEMPLATE.replace("__API_KEY__", input.value || "YOUR_API_KEY"));
+  link.href = "/uploader.user.js?key=" + encodeURIComponent(input.value || "YOUR_API_KEY");
 }
 input.addEventListener("input", update);
 update();
@@ -166,32 +165,38 @@ update();
     <Layout title="記録のやり方">
       <h2>記録のやり方</h2>
       <p>
-        対局後、牌譜を「記録用ブックマークレット」で送信すると成績に反映されます。
+        ブラウザ版の雀魂で牌譜を開くと、ユーザースクリプトが対局データを自動でこのサーバーへ送信します。
         メンバーの誰か1人が以下のセットアップをすればOKです。
       </p>
       <h3>初回セットアップ</h3>
       <ol>
         <li>
+          ブラウザに <strong>Tampermonkey</strong> 拡張機能をインストールする
+          <br />
+          <span class="muted">
+            Chromeの場合は chrome://extensions で「デベロッパーモード」をONにする必要あり
+          </span>
+        </li>
+        <li>
           APIキーを入力:{" "}
           <input id="key" type="password" placeholder="管理者から教えてもらったAPIキー" />
         </li>
         <li>
-          このリンクをブックマークバーへドラッグ:{" "}
-          <a id="bm" class="bookmarklet" href="#">
-            雀魂成績を記録
+          <a id="install" class="bookmarklet" href="/uploader.user.js?key=YOUR_API_KEY">
+            ユーザースクリプトをインストール
           </a>
+          {" "}をクリック → Tampermonkeyの確認画面で「インストール」
         </li>
       </ol>
       <h3>毎回の操作</h3>
       <ol>
         <li>ブラウザ版の雀魂 (game.mahjongsoul.com) にログインする</li>
-        <li>記録したい牌譜を開く（共有された牌譜URLを開くでもOK）</li>
-        <li>ブックマークバーの「雀魂成績を記録」をクリック</li>
-        <li>「記録しました」と表示されたら完了。このサイトに反映される</li>
+        <li>記録したい牌譜を開く（記録画面から / 共有URLを開く、どちらでもOK）</li>
+        <li>画面上部に「記録しました」と緑の表示が出たら完了。このサイトに反映される</li>
       </ol>
       <p class="muted">
-        牌譜を開いていない画面でクリックした場合は、牌譜URLの入力を求められます。
-        対象は友人戦の4人麻雀（2026/06/13以降）のみで、それ以外はエラーになります。
+        対象は友人戦の4人麻雀（2026/06/13以降）のみで、それ以外を開いた場合はエラー表示になります。
+        同じ牌譜を何度開いても二重記録はされません。
       </p>
       <script dangerouslySetInnerHTML={{ __html: script }} />
     </Layout>

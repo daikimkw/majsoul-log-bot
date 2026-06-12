@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { fetchGame, fetchGames, fetchPlayerStats, saveGame } from "./db";
 import { PaipuError, parsePaipu, type PaipuInput } from "./parser";
-import { bookmarkletTemplate } from "./bookmarklet";
-import { BookmarkletPage, GamePage, GamesPage, StatsPage } from "./views";
+import { userscriptSource } from "./userscript";
+import { GamePage, GamesPage, SetupPage, StatsPage } from "./views";
 
 type Env = {
   Bindings: {
@@ -43,9 +43,14 @@ app.get("/", async (c) => {
   return c.html(<StatsPage stats={stats} />);
 });
 
-app.get("/bookmarklet", (c) => {
+app.get("/setup", (c) => c.html(<SetupPage />));
+
+app.get("/uploader.user.js", (c) => {
   const endpoint = new URL(c.req.url).origin + "/api/games";
-  return c.html(<BookmarkletPage template={bookmarkletTemplate(endpoint)} />);
+  const key = c.req.query("key") || "YOUR_API_KEY";
+  return c.text(userscriptSource(endpoint, key), 200, {
+    "content-type": "text/javascript; charset=utf-8",
+  });
 });
 
 app.get("/games", async (c) => {
