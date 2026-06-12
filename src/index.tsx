@@ -1,0 +1,56 @@
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { fetchGame, fetchGames, fetchPlayerStats, saveGame } from "./db";
+import { PaipuError, parsePaipu, type PaipuInput } from "./parser";
+import { GamePage, GamesPage, StatsPage } from "./views";
+
+type Env = {
+  Bindings: {
+    DB: D1Database;
+    API_KEY: string;
+  };
+};
+
+const app = new Hono<Env>();
+
+app.use("/api/*", cors({ origin: "*", allowHeaders: ["content-type", "x-api-key"] }));
+
+app.post("/api/games", async (c) => {
+  if (c.req.header("x-api-key") !== c.env.API_KEY) {
+    return c.json({ ok: false, error: "APIキーが不正です" }, 401);
+  }
+  let body: PaipuInput;
+  try {
+    body = await c.req.json<PaipuInput>();
+  } catch {
+    return c.json({ ok: false, error: "JSONが不正です" }, 400);
+  }
+  try {
+    const game = parsePaipu(body);
+    const saved = await saveGame(c.env.DB, game);
+    return c.json({ ok: true, uuid: game.uuid, saved, message: saved ? "記録しました" : "記録済みの対局です" });
+  } catch (e) {
+    if (e instanceof PaipuError) {
+      return c.json({ ok: false, error: e.message }, 422);
+    }
+    throw e;
+  }
+});
+
+app.get("/", async (c) => {
+  const stats = await fetchPlayerStats(c.env.DB);
+  return c.html(<StatsPage stats={stats} />);
+});
+
+app.get("/games", async (c) => {
+  const games = await fetchGames(c.env.DB);
+  return c.html(<GamesPage games={games} />);
+});
+
+app.get("/games/:uuid", async (c) => {
+  const rows = await fetchGame(c.env.DB, c.req.param("uuid"));
+  if (rows.length === 0) return c.notFound();
+  return c.html(<GamePage rows={rows} />);
+});
+
+export default app;
