@@ -22,6 +22,9 @@ th:first-child, td:first-child { text-align: left; }
 thead { background: #8882; }
 .pos { color: #1a7f37; } .neg { color: #cf222e; }
 .muted { color: #888; font-size: 0.85em; }
+.bookmarklet { display: inline-block; padding: 8px 16px; border: 1px solid #888; border-radius: 6px; background: #8881; font-weight: bold; }
+input[type="password"] { padding: 6px 8px; font-size: 14px; width: 280px; }
+ol li { margin-bottom: 8px; }
 `;
 
 export const Layout: FC<PropsWithChildren<{ title?: string }>> = ({ title, children }) => (
@@ -39,6 +42,7 @@ export const Layout: FC<PropsWithChildren<{ title?: string }>> = ({ title, child
       <nav>
         <a href="/">総合成績</a>
         <a href="/games">対局一覧</a>
+        <a href="/bookmarklet">記録のやり方</a>
       </nav>
       {children}
     </body>
@@ -143,6 +147,53 @@ export const GamesPage: FC<{ games: GameListRow[] }> = ({ games }) => {
           </tbody>
         </table>
       )}
+    </Layout>
+  );
+};
+
+export const BookmarkletPage: FC<{ template: string }> = ({ template }) => {
+  const script = `
+var TEMPLATE = ${JSON.stringify(template)};
+var link = document.getElementById("bm");
+var input = document.getElementById("key");
+function update() {
+  link.href = "javascript:" + encodeURIComponent(TEMPLATE.replace("__API_KEY__", input.value || "YOUR_API_KEY"));
+}
+input.addEventListener("input", update);
+update();
+`;
+  return (
+    <Layout title="記録のやり方">
+      <h2>記録のやり方</h2>
+      <p>
+        対局後、牌譜を「記録用ブックマークレット」で送信すると成績に反映されます。
+        メンバーの誰か1人が以下のセットアップをすればOKです。
+      </p>
+      <h3>初回セットアップ</h3>
+      <ol>
+        <li>
+          APIキーを入力:{" "}
+          <input id="key" type="password" placeholder="管理者から教えてもらったAPIキー" />
+        </li>
+        <li>
+          このリンクをブックマークバーへドラッグ:{" "}
+          <a id="bm" class="bookmarklet" href="#">
+            雀魂成績を記録
+          </a>
+        </li>
+      </ol>
+      <h3>毎回の操作</h3>
+      <ol>
+        <li>ブラウザ版の雀魂 (game.mahjongsoul.com) にログインする</li>
+        <li>記録したい牌譜を開く（共有された牌譜URLを開くでもOK）</li>
+        <li>ブックマークバーの「雀魂成績を記録」をクリック</li>
+        <li>「記録しました」と表示されたら完了。このサイトに反映される</li>
+      </ol>
+      <p class="muted">
+        牌譜を開いていない画面でクリックした場合は、牌譜URLの入力を求められます。
+        対象は友人戦の4人麻雀（2026/06/13以降）のみで、それ以外はエラーになります。
+      </p>
+      <script dangerouslySetInnerHTML={{ __html: script }} />
     </Layout>
   );
 };

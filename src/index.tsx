@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { fetchGame, fetchGames, fetchPlayerStats, saveGame } from "./db";
 import { PaipuError, parsePaipu, type PaipuInput } from "./parser";
-import { GamePage, GamesPage, StatsPage } from "./views";
+import { bookmarkletTemplate } from "./bookmarklet";
+import { BookmarkletPage, GamePage, GamesPage, StatsPage } from "./views";
 
 type Env = {
   Bindings: {
@@ -40,6 +41,11 @@ app.post("/api/games", async (c) => {
 app.get("/", async (c) => {
   const stats = await fetchPlayerStats(c.env.DB);
   return c.html(<StatsPage stats={stats} />);
+});
+
+app.get("/bookmarklet", (c) => {
+  const endpoint = new URL(c.req.url).origin + "/api/games";
+  return c.html(<BookmarkletPage template={bookmarkletTemplate(endpoint)} />);
 });
 
 app.get("/games", async (c) => {
