@@ -41,6 +41,7 @@ ol li { margin-bottom: 8px; }
 .matrix thead th:first-child { background: Canvas; }
 .matrix tfoot td { border-top: 2px solid #8886; font-weight: bold; }
 .matrix .win { font-weight: bold; }
+.seasons a, .seasons strong { margin: 0 8px; }
 `;
 
 export const Layout: FC<PropsWithChildren<{ title?: string }>> = ({ title, children }) => (
@@ -72,6 +73,26 @@ export const Layout: FC<PropsWithChildren<{ title?: string }>> = ({ title, child
 const PointCell: FC<{ point: number }> = ({ point }) => (
   <td class={point > 0 ? "pos" : point < 0 ? "neg" : ""}>{fmtPoint(point)}</td>
 );
+
+const SeasonNav: FC<{ seasons: number[]; season: number; basePath: string }> = ({
+  seasons,
+  season,
+  basePath,
+}) => {
+  if (seasons.length === 0) return null;
+  return (
+    <p class="seasons">
+      シーズン:{" "}
+      {seasons.map((y) =>
+        y === season ? (
+          <strong>{y}</strong>
+        ) : (
+          <a href={`${basePath}?season=${y}`}>{y}</a>
+        ),
+      )}
+    </p>
+  );
+};
 
 const PALETTE = ["#2563eb", "#dc2626", "#16a34a", "#d97706", "#9333ea", "#0891b2", "#db2777", "#65a30d"];
 
@@ -158,14 +179,20 @@ const PointChart: FC<{ history: PointHistoryRow[] }> = ({ history }) => {
 export const StatsPage: FC<{
   stats: PlayerStatsRow[];
   history: PointHistoryRow[];
+  seasons: number[];
+  season: number;
+  basePath: string;
   sanma?: boolean;
-}> = ({ stats, history, sanma }) => {
+}> = ({ stats, history, seasons, season, basePath, sanma }) => {
   const returnPoint = sanma ? 40000 : 30000;
   return (
   <Layout title={sanma ? "総合成績(三人麻雀)" : undefined}>
-    <h2>{sanma ? "総合成績（三人麻雀）" : "総合成績"}</h2>
+    <h2>
+      {sanma ? "総合成績（三人麻雀）" : "総合成績"} <span class="muted">{season}</span>
+    </h2>
+    <SeasonNav seasons={seasons} season={season} basePath={basePath} />
     {stats.length === 0 ? (
-      <p>まだ対局が記録されていません。</p>
+      <p>このシーズンの対局はまだ記録されていません。</p>
     ) : (
       <table>
         <thead>
@@ -238,7 +265,13 @@ export const StatsPage: FC<{
   );
 };
 
-export const GamesPage: FC<{ games: GameListRow[]; sanma?: boolean }> = ({ games, sanma }) => {
+export const GamesPage: FC<{
+  games: GameListRow[];
+  seasons: number[];
+  season: number;
+  basePath: string;
+  sanma?: boolean;
+}> = ({ games, seasons, season, basePath, sanma }) => {
   const byUuid = new Map<string, GameListRow[]>();
   for (const g of games) {
     const list = byUuid.get(g.uuid) ?? [];
@@ -259,9 +292,12 @@ export const GamesPage: FC<{ games: GameListRow[]; sanma?: boolean }> = ({ games
   const cls = (p: number) => (p > 0 ? "pos" : p < 0 ? "neg" : "");
   return (
     <Layout title={sanma ? "対局一覧(三人麻雀)" : "対局一覧"}>
-      <h2>{sanma ? "対局一覧（三人麻雀）" : "対局一覧"}</h2>
+      <h2>
+        {sanma ? "対局一覧（三人麻雀）" : "対局一覧"} <span class="muted">{season}</span>
+      </h2>
+      <SeasonNav seasons={seasons} season={season} basePath={basePath} />
       {byUuid.size === 0 ? (
-        <p>まだ対局が記録されていません。</p>
+        <p>このシーズンの対局はまだ記録されていません。</p>
       ) : (
         <div class="matrix-wrap">
           <table class="matrix">

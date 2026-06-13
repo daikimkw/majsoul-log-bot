@@ -98,9 +98,27 @@ export interface PointHistoryRow {
   point: number;
 }
 
+// JST暦年。シーズン＝この年で集計を区切る。
+const YEAR_JST = "CAST(strftime('%Y', start_time, 'unixepoch', '+9 hours') AS INTEGER)";
+
+// modesとシーズン(年)に該当する利用可能シーズン一覧（降順）
+export async function fetchSeasons(db: D1Database, modes: number[]): Promise<number[]> {
+  const placeholders = modes.map(() => "?").join(", ");
+  const { results } = await db
+    .prepare(
+      `SELECT DISTINCT ${YEAR_JST} AS season
+      FROM games WHERE mode IN (${placeholders})
+      ORDER BY season DESC`,
+    )
+    .bind(...modes)
+    .all<{ season: number }>();
+  return results.map((r) => r.season);
+}
+
 export async function fetchPointHistory(
   db: D1Database,
   modes: number[],
+  season: number,
 ): Promise<PointHistoryRow[]> {
   const placeholders = modes.map(() => "?").join(", ");
   const { results } = await db
@@ -110,9 +128,10 @@ export async function fetchPointHistory(
       JOIN game_results r ON r.game_uuid = g.uuid
       JOIN players p ON p.account_id = r.account_id
       WHERE g.mode IN (${placeholders})
+        AND CAST(strftime('%Y', g.start_time, 'unixepoch', '+9 hours') AS INTEGER) = ?
       ORDER BY g.start_time ASC, g.uuid ASC`,
     )
-    .bind(...modes)
+    .bind(...modes, season)
     .all<PointHistoryRow>();
   return results;
 }
@@ -128,6 +147,7 @@ export async function deleteGame(db: D1Database, uuid: string): Promise<boolean>
 export async function fetchPlayerStats(
   db: D1Database,
   modes: number[],
+  season: number,
 ): Promise<PlayerStatsRow[]> {
   const placeholders = modes.map(() => "?").join(", ");
   const { results } = await db
@@ -155,10 +175,11 @@ export async function fetchPlayerStats(
       JOIN players p ON p.account_id = r.account_id
       JOIN games g ON g.uuid = r.game_uuid
       WHERE g.mode IN (${placeholders})
+        AND CAST(strftime('%Y', g.start_time, 'unixepoch', '+9 hours') AS INTEGER) = ?
       GROUP BY p.account_id
       ORDER BY total_point DESC`,
     )
-    .bind(...modes)
+    .bind(...modes, season)
     .all<PlayerStatsRow>();
   return results;
 }
@@ -166,6 +187,7 @@ export async function fetchPlayerStats(
 export async function fetchGames(
   db: D1Database,
   modes: number[],
+  season: number,
   limit = 100,
 ): Promise<GameListRow[]> {
   const placeholders = modes.map(() => "?").join(", ");
@@ -177,12 +199,13 @@ export async function fetchGames(
       JOIN game_results r ON r.game_uuid = g.uuid
       JOIN players p ON p.account_id = r.account_id
       WHERE g.uuid IN (
-        SELECT uuid FROM games WHERE mode IN (${placeholders})
+        SELECT uuid FROM games
+        WHERE mode IN (${placeholders}) AND ${YEAR_JST} = ?
         ORDER BY start_time DESC LIMIT ?
       )
       ORDER BY g.start_time DESC, r.rank ASC`,
     )
-    .bind(...modes, limit)
+    .bind(...modes, season, limit)
     .all<GameListRow>();
   return results;
 }

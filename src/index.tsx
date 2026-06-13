@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { deleteGame, fetchGame, fetchGames, fetchPlayerStats, fetchPointHistory, saveGame } from "./db";
+import { deleteGame, fetchGame, fetchGames, fetchPlayerStats, fetchPointHistory, fetchSeasons, saveGame } from "./db";
 import { PaipuError, parsePaipu, type PaipuInput } from "./parser";
 import { userscriptSource } from "./userscript";
 import { GamePage, GamesPage, SetupPage, StatsPage } from "./views";
@@ -14,6 +14,15 @@ type Env = {
 
 const YONMA = [1, 2];
 const SANMA = [11, 12];
+
+const jstYear = () => new Date(Date.now() + 9 * 3600 * 1000).getUTCFullYear();
+
+// ?season を解釈。未指定/不正なら最新シーズン、データが無ければ現在のJST年。
+function resolveSeason(query: string | undefined, seasons: number[]): number {
+  const q = query ? Number(query) : NaN;
+  if (Number.isFinite(q) && seasons.includes(q)) return q;
+  return seasons[0] ?? jstYear();
+}
 
 const app = new Hono<Env>();
 
@@ -42,24 +51,36 @@ app.post("/api/games", async (c) => {
 });
 
 app.get("/", async (c) => {
+  const seasons = await fetchSeasons(c.env.DB, YONMA);
+  const season = resolveSeason(c.req.query("season"), seasons);
   const [stats, history] = await Promise.all([
-    fetchPlayerStats(c.env.DB, YONMA),
-    fetchPointHistory(c.env.DB, YONMA),
+    fetchPlayerStats(c.env.DB, YONMA, season),
+    fetchPointHistory(c.env.DB, YONMA, season),
   ]);
-  return c.html(<StatsPage stats={stats} history={history} />);
+  return c.html(
+    <StatsPage stats={stats} history={history} seasons={seasons} season={season} basePath="/" />,
+  );
 });
 
 app.get("/sanma", async (c) => {
+  const seasons = await fetchSeasons(c.env.DB, SANMA);
+  const season = resolveSeason(c.req.query("season"), seasons);
   const [stats, history] = await Promise.all([
-    fetchPlayerStats(c.env.DB, SANMA),
-    fetchPointHistory(c.env.DB, SANMA),
+    fetchPlayerStats(c.env.DB, SANMA, season),
+    fetchPointHistory(c.env.DB, SANMA, season),
   ]);
-  return c.html(<StatsPage stats={stats} history={history} sanma />);
+  return c.html(
+    <StatsPage stats={stats} history={history} seasons={seasons} season={season} basePath="/sanma" sanma />,
+  );
 });
 
 app.get("/sanma/games", async (c) => {
-  const games = await fetchGames(c.env.DB, SANMA);
-  return c.html(<GamesPage games={games} sanma />);
+  const seasons = await fetchSeasons(c.env.DB, SANMA);
+  const season = resolveSeason(c.req.query("season"), seasons);
+  const games = await fetchGames(c.env.DB, SANMA, season);
+  return c.html(
+    <GamesPage games={games} seasons={seasons} season={season} basePath="/sanma/games" sanma />,
+  );
 });
 
 app.get("/setup", (c) => c.html(<SetupPage />));
@@ -73,8 +94,10 @@ app.get("/uploader.user.js", (c) => {
 });
 
 app.get("/games", async (c) => {
-  const games = await fetchGames(c.env.DB, YONMA);
-  return c.html(<GamesPage games={games} />);
+  const seasons = await fetchSeasons(c.env.DB, YONMA);
+  const season = resolveSeason(c.req.query("season"), seasons);
+  const games = await fetchGames(c.env.DB, YONMA, season);
+  return c.html(<GamesPage games={games} seasons={seasons} season={season} basePath="/games" />);
 });
 
 app.post("/games/:uuid/delete", async (c) => {
