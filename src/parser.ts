@@ -92,8 +92,14 @@ export function parsePaipu(input: PaipuInput): ParsedGame {
   const category = numField(config, "category");
   if (category !== 1) throw new PaipuError("友人戦ではありません");
 
-  const mode = numField(field<unknown>(config, "mode"), "mode");
-  if (mode !== 1 && mode !== 2) throw new PaipuError("4人麻雀（東風/半荘）ではありません");
+  const modeConfig = field<unknown>(config, "mode");
+  const mode = numField(modeConfig, "mode");
+
+  const resultPlayers = field<unknown[]>(field<unknown>(head, "result"), "players") ?? [];
+  const playerCount = resultPlayers.length;
+  if (playerCount !== 3 && playerCount !== 4) {
+    throw new PaipuError("3人麻雀または4人麻雀ではありません");
+  }
 
   const startTime = numField(head, "start_time");
   const endTime = numField(head, "end_time") || null;
@@ -107,7 +113,7 @@ export function parsePaipu(input: PaipuInput): ParsedGame {
   if (players.length === 0) throw new PaipuError("プレイヤー情報がありません");
 
   const stats = computeKyokuStats(input.records);
-  const finals = computeFinalResults(head);
+  const finals = computeFinalResults(resultPlayers, playerCount, modeConfig);
 
   // アカウントのない席はCPU(robots)。robotのaccount_idは対局ごとに振り直されるため、
   // キャラ固有のcharidをキーに（account_id=-charid）して同一キャラを対局をまたいで合算する。
@@ -231,11 +237,30 @@ function computeKyokuStats(records: PaipuInput["records"]): KyokuStats[] {
   return stats;
 }
 
+// 順位点（ウマ＋オカ）と返し点を人数・ルールから決める。
+// 4麻はMリーグ式（25000持ち30000返し・ウマ30-10・オカ20）の合成値。
+// 三麻はウマ30-0-▲30、返し点は牌譜設定(fandian)から取得し、オカ=(返し-持ち)*3 を1位に加算。
+function placementForCount(
+  playerCount: number,
+  modeConfig: unknown,
+): { returnPoint: number; placement: number[] } {
+  if (playerCount === 3) {
+    const detail = field<unknown>(modeConfig, "detail_rule");
+    const initPoint = numField(detail, "init_point") || 35000;
+    const returnPoint = numField(detail, "fandian") || 40000;
+    const oka = ((returnPoint - initPoint) * 3) / 1000;
+    return { returnPoint, placement: [30 + oka, 0, -30] };
+  }
+  return { returnPoint: 30000, placement: PLACEMENT_POINTS };
+}
+
 function computeFinalResults(
-  head: Record<string, unknown>,
+  resultPlayers: unknown[],
+  playerCount: number,
+  modeConfig: unknown,
 ): { seat: number; rank: number; rawScore: number; point: number }[] {
-  const resultPlayers = field<unknown[]>(field<unknown>(head, "result"), "players") ?? [];
   if (resultPlayers.length === 0) throw new PaipuError("最終結果がありません");
+  const { returnPoint, placement } = placementForCount(playerCount, modeConfig);
 
   const entries = resultPlayers.map((p) => ({
     seat: numField(p, "seat"),
@@ -250,15 +275,14 @@ function computeFinalResults(
     let j = i;
     while (j + 1 < entries.length && entries[j + 1].rawScore === entries[i].rawScore) j++;
     // 同点グループは順位点を等分し、同順位とする
-    const shared =
-      PLACEMENT_POINTS.slice(i, j + 1).reduce((a, b) => a + b, 0) / (j - i + 1);
+    const shared = placement.slice(i, j + 1).reduce((a, b) => a + b, 0) / (j - i + 1);
     for (let k = i; k <= j; k++) {
       const e = entries[k];
       out.push({
         seat: e.seat,
         rank: i + 1,
         rawScore: e.rawScore,
-        point: Math.round(((e.rawScore - 30000) / 1000 + shared) * 10) / 10,
+        point: Math.round(((e.rawScore - returnPoint) / 1000 + shared) * 10) / 10,
       });
     }
     i = j + 1;

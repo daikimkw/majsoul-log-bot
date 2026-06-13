@@ -1,7 +1,7 @@
 import type { FC, PropsWithChildren } from "hono/jsx";
 import type { GameListRow, GameResultRow, PlayerStatsRow, PointHistoryRow } from "./db";
 
-const MODE_NAMES: Record<number, string> = { 1: "四人東", 2: "四人南" };
+const MODE_NAMES: Record<number, string> = { 1: "四人東", 2: "四人南", 11: "三人東", 12: "三人南" };
 
 const fmtDate = (unix: number) =>
   new Date(unix * 1000).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
@@ -58,6 +58,10 @@ export const Layout: FC<PropsWithChildren<{ title?: string }>> = ({ title, child
       <nav>
         <a href="/">総合成績</a>
         <a href="/games">対局一覧</a>
+        {" | "}
+        <a href="/sanma">総合成績(三麻)</a>
+        <a href="/sanma/games">対局一覧(三麻)</a>
+        {" | "}
         <a href="/setup">記録のやり方</a>
       </nav>
       {children}
@@ -151,12 +155,15 @@ const PointChart: FC<{ history: PointHistoryRow[] }> = ({ history }) => {
   );
 };
 
-export const StatsPage: FC<{ stats: PlayerStatsRow[]; history: PointHistoryRow[] }> = ({
-  stats,
-  history,
-}) => (
-  <Layout>
-    <h2>総合成績</h2>
+export const StatsPage: FC<{
+  stats: PlayerStatsRow[];
+  history: PointHistoryRow[];
+  sanma?: boolean;
+}> = ({ stats, history, sanma }) => {
+  const returnPoint = sanma ? 40000 : 30000;
+  return (
+  <Layout title={sanma ? "総合成績(三人麻雀)" : undefined}>
+    <h2>{sanma ? "総合成績（三人麻雀）" : "総合成績"}</h2>
     {stats.length === 0 ? (
       <p>まだ対局が記録されていません。</p>
     ) : (
@@ -172,7 +179,7 @@ export const StatsPage: FC<{ stats: PlayerStatsRow[]; history: PointHistoryRow[]
             <th>1着</th>
             <th>2着</th>
             <th>3着</th>
-            <th>4着</th>
+            {!sanma && <th>4着</th>}
             <th>和了率</th>
             <th>放銃率</th>
             <th>立直率</th>
@@ -188,13 +195,13 @@ export const StatsPage: FC<{ stats: PlayerStatsRow[]; history: PointHistoryRow[]
               <td>{s.nickname}</td>
               <td>{s.game_count}</td>
               <PointCell point={s.total_point} />
-              <PointCell point={Math.round(((s.raw_score_sum - 30000 * s.game_count) / 1000) * 10) / 10} />
+              <PointCell point={Math.round(((s.raw_score_sum - returnPoint * s.game_count) / 1000) * 10) / 10} />
               <td>{Math.round(s.raw_score_sum / s.game_count).toLocaleString()}</td>
               <td>{s.avg_rank.toFixed(2)}</td>
               <td>{s.rank1}</td>
               <td>{s.rank2}</td>
               <td>{s.rank3}</td>
-              <td>{s.rank4}</td>
+              {!sanma && <td>{s.rank4}</td>}
               <td>{pct(s.win_count, s.kyoku_count)}</td>
               <td>{pct(s.deal_in_count, s.kyoku_count)}</td>
               <td>{pct(s.riichi_count, s.kyoku_count)}</td>
@@ -214,14 +221,24 @@ export const StatsPage: FC<{ stats: PlayerStatsRow[]; history: PointHistoryRow[]
       </>
     )}
     <p class="muted">
-      ポイントはMリーグ式（25,000点持ち30,000点返し・ウマ30-10・オカ20、同点は順位点を等分）。
-      素点ptは順位点（ウマ・オカ）を除いた素点部分の累計（(素点−30,000)÷1,000の合計）。
+      {sanma ? (
+        <>
+          ポイントは三人麻雀ルール（ウマ30-0-▲30・オカは返し点から自動計算、同点は順位点を等分）。
+          素点ptは順位点を除いた素点部分の累計（(素点−40,000)÷1,000の合計）。
+        </>
+      ) : (
+        <>
+          ポイントはMリーグ式（25,000点持ち30,000点返し・ウマ30-10・オカ20、同点は順位点を等分）。
+          素点ptは順位点（ウマ・オカ）を除いた素点部分の累計（(素点−30,000)÷1,000の合計）。
+        </>
+      )}
       和了率などの分母は局数です。CPUはキャラ単位で対局をまたいで合算されます（同名キャラは同一個体として扱います）。
     </p>
   </Layout>
-);
+  );
+};
 
-export const GamesPage: FC<{ games: GameListRow[] }> = ({ games }) => {
+export const GamesPage: FC<{ games: GameListRow[]; sanma?: boolean }> = ({ games, sanma }) => {
   const byUuid = new Map<string, GameListRow[]>();
   for (const g of games) {
     const list = byUuid.get(g.uuid) ?? [];
@@ -241,8 +258,8 @@ export const GamesPage: FC<{ games: GameListRow[] }> = ({ games }) => {
     .sort((a, b) => b.total - a.total);
   const cls = (p: number) => (p > 0 ? "pos" : p < 0 ? "neg" : "");
   return (
-    <Layout title="対局一覧">
-      <h2>対局一覧</h2>
+    <Layout title={sanma ? "対局一覧(三人麻雀)" : "対局一覧"}>
+      <h2>{sanma ? "対局一覧（三人麻雀）" : "対局一覧"}</h2>
       {byUuid.size === 0 ? (
         <p>まだ対局が記録されていません。</p>
       ) : (

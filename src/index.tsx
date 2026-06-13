@@ -12,6 +12,9 @@ type Env = {
   };
 };
 
+const YONMA = [1, 2];
+const SANMA = [11, 12];
+
 const app = new Hono<Env>();
 
 app.use("/api/*", cors({ origin: "*", allowHeaders: ["content-type", "x-api-key"] }));
@@ -40,10 +43,23 @@ app.post("/api/games", async (c) => {
 
 app.get("/", async (c) => {
   const [stats, history] = await Promise.all([
-    fetchPlayerStats(c.env.DB),
-    fetchPointHistory(c.env.DB),
+    fetchPlayerStats(c.env.DB, YONMA),
+    fetchPointHistory(c.env.DB, YONMA),
   ]);
   return c.html(<StatsPage stats={stats} history={history} />);
+});
+
+app.get("/sanma", async (c) => {
+  const [stats, history] = await Promise.all([
+    fetchPlayerStats(c.env.DB, SANMA),
+    fetchPointHistory(c.env.DB, SANMA),
+  ]);
+  return c.html(<StatsPage stats={stats} history={history} sanma />);
+});
+
+app.get("/sanma/games", async (c) => {
+  const games = await fetchGames(c.env.DB, SANMA);
+  return c.html(<GamesPage games={games} sanma />);
 });
 
 app.get("/setup", (c) => c.html(<SetupPage />));
@@ -57,7 +73,7 @@ app.get("/uploader.user.js", (c) => {
 });
 
 app.get("/games", async (c) => {
-  const games = await fetchGames(c.env.DB);
+  const games = await fetchGames(c.env.DB, YONMA);
   return c.html(<GamesPage games={games} />);
 });
 

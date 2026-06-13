@@ -229,9 +229,43 @@ describe("parsePaipu", () => {
     expect(() => parsePaipu({ head, records })).toThrow(PaipuError);
   });
 
-  it("三人麻雀は拒否する", () => {
-    const head = makeHead({ config: { category: 1, mode: { mode: 12 } } });
-    expect(() => parsePaipu({ head, records })).toThrow(/4人麻雀/);
+  it("三人麻雀を受理しウマ30-0-▲30＋オカ自動でポイントを計算する", () => {
+    const head = makeHead({
+      accounts: [
+        { account_id: 101, seat: 0, nickname: "A" },
+        { account_id: 102, seat: 1, nickname: "B" },
+        { account_id: 103, seat: 2, nickname: "C" },
+      ],
+      config: {
+        category: 1,
+        mode: { mode: 12, detail_rule: { init_point: 35000, fandian: 40000 } },
+      },
+      result: {
+        players: [
+          { seat: 0, part_point_1: 50000 },
+          { seat: 1, part_point_1: 35000 },
+          { seat: 2, part_point_1: 20000 },
+        ],
+      },
+    });
+    const game = parsePaipu({ head, records });
+    expect(game.results).toHaveLength(3);
+    const bySeat = new Map(game.results.map((r) => [r.seat, r]));
+    // オカ=(40000-35000)*3/1000=15、順位点=[45,0,-30]
+    expect(bySeat.get(0)!.rank).toBe(1);
+    expect(bySeat.get(0)!.point).toBeCloseTo((50000 - 40000) / 1000 + 45);
+    expect(bySeat.get(1)!.point).toBeCloseTo((35000 - 40000) / 1000);
+    expect(bySeat.get(2)!.point).toBeCloseTo((20000 - 40000) / 1000 - 30);
+    // 合計はゼロサム
+    const sum = game.results.reduce((a, r) => a + r.point, 0);
+    expect(sum).toBeCloseTo(0);
+  });
+
+  it("3人でも4人でもない場合は拒否する", () => {
+    const head = makeHead({
+      result: { players: [{ seat: 0, part_point_1: 25000 }, { seat: 1, part_point_1: 25000 }] },
+    });
+    expect(() => parsePaipu({ head, records })).toThrow(PaipuError);
   });
 
 });

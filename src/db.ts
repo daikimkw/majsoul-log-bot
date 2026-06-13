@@ -98,15 +98,21 @@ export interface PointHistoryRow {
   point: number;
 }
 
-export async function fetchPointHistory(db: D1Database): Promise<PointHistoryRow[]> {
+export async function fetchPointHistory(
+  db: D1Database,
+  modes: number[],
+): Promise<PointHistoryRow[]> {
+  const placeholders = modes.map(() => "?").join(", ");
   const { results } = await db
     .prepare(
       `SELECT g.uuid, g.start_time, r.account_id, p.nickname, r.point
       FROM games g
       JOIN game_results r ON r.game_uuid = g.uuid
       JOIN players p ON p.account_id = r.account_id
+      WHERE g.mode IN (${placeholders})
       ORDER BY g.start_time ASC, g.uuid ASC`,
     )
+    .bind(...modes)
     .all<PointHistoryRow>();
   return results;
 }
@@ -119,7 +125,11 @@ export async function deleteGame(db: D1Database, uuid: string): Promise<boolean>
   return (results[1].meta.changes ?? 0) > 0;
 }
 
-export async function fetchPlayerStats(db: D1Database): Promise<PlayerStatsRow[]> {
+export async function fetchPlayerStats(
+  db: D1Database,
+  modes: number[],
+): Promise<PlayerStatsRow[]> {
+  const placeholders = modes.map(() => "?").join(", ");
   const { results } = await db
     .prepare(
       `SELECT
@@ -143,14 +153,22 @@ export async function fetchPlayerStats(db: D1Database): Promise<PlayerStatsRow[]
         SUM(r.deal_in_point_sum) AS deal_in_point_sum
       FROM game_results r
       JOIN players p ON p.account_id = r.account_id
+      JOIN games g ON g.uuid = r.game_uuid
+      WHERE g.mode IN (${placeholders})
       GROUP BY p.account_id
       ORDER BY total_point DESC`,
     )
+    .bind(...modes)
     .all<PlayerStatsRow>();
   return results;
 }
 
-export async function fetchGames(db: D1Database, limit = 100): Promise<GameListRow[]> {
+export async function fetchGames(
+  db: D1Database,
+  modes: number[],
+  limit = 100,
+): Promise<GameListRow[]> {
+  const placeholders = modes.map(() => "?").join(", ");
   const { results } = await db
     .prepare(
       `SELECT g.uuid, g.start_time, g.mode,
@@ -158,10 +176,13 @@ export async function fetchGames(db: D1Database, limit = 100): Promise<GameListR
       FROM games g
       JOIN game_results r ON r.game_uuid = g.uuid
       JOIN players p ON p.account_id = r.account_id
-      WHERE g.uuid IN (SELECT uuid FROM games ORDER BY start_time DESC LIMIT ?)
+      WHERE g.uuid IN (
+        SELECT uuid FROM games WHERE mode IN (${placeholders})
+        ORDER BY start_time DESC LIMIT ?
+      )
       ORDER BY g.start_time DESC, r.rank ASC`,
     )
-    .bind(limit)
+    .bind(...modes, limit)
     .all<GameListRow>();
   return results;
 }
