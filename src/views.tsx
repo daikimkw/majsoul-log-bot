@@ -6,6 +6,15 @@ const MODE_NAMES: Record<number, string> = { 1: "四人東", 2: "四人南" };
 const fmtDate = (unix: number) =>
   new Date(unix * 1000).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
 
+const fmtDateShort = (unix: number) =>
+  new Date(unix * 1000).toLocaleString("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
 const pct = (n: number, d: number) => (d > 0 ? `${((n / d) * 100).toFixed(1)}%` : "-");
 
 const fmtPoint = (p: number) => (p > 0 ? `+${p.toFixed(1)}` : p.toFixed(1));
@@ -25,13 +34,13 @@ thead { background: #8882; }
 .bookmarklet { display: inline-block; padding: 8px 16px; border: 1px solid #888; border-radius: 6px; background: #8881; font-weight: bold; }
 input[type="password"] { padding: 6px 8px; font-size: 14px; width: 280px; }
 ol li { margin-bottom: 8px; }
-.game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-bottom: 24px; }
-.game-card { border: 1px solid #8884; border-radius: 8px; padding: 10px 12px; }
-.game-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-.game-card table { margin: 0; }
-.game-card td { border: none; padding: 3px 4px; }
-.game-card .rank { color: #888; width: 1px; }
-.game-card .name { text-align: left; width: 100%; }
+.matrix-wrap { overflow-x: auto; margin-bottom: 24px; }
+.matrix { margin: 0; white-space: nowrap; }
+.matrix th:first-child, .matrix td:first-child { position: sticky; left: 0; text-align: left; }
+.matrix tbody td:first-child, .matrix tfoot td:first-child { background: Canvas; }
+.matrix thead th:first-child { background: Canvas; }
+.matrix tfoot td { border-top: 2px solid #8886; font-weight: bold; }
+.matrix .win { font-weight: bold; }
 `;
 
 export const Layout: FC<PropsWithChildren<{ title?: string }>> = ({ title, children }) => (
@@ -219,37 +228,65 @@ export const GamesPage: FC<{ games: GameListRow[] }> = ({ games }) => {
     list.push(g);
     byUuid.set(g.uuid, list);
   }
+  // 列＝プレイヤー。合計ポイント降順で並べる
+  const totals = new Map<number, { name: string; total: number }>();
+  for (const g of games) {
+    const t = totals.get(g.account_id) ?? { name: g.nickname, total: 0 };
+    t.total += g.point;
+    t.name = g.nickname;
+    totals.set(g.account_id, t);
+  }
+  const cols = [...totals.entries()]
+    .map(([accountId, t]) => ({ accountId, name: t.name, total: Math.round(t.total * 10) / 10 }))
+    .sort((a, b) => b.total - a.total);
+  const cls = (p: number) => (p > 0 ? "pos" : p < 0 ? "neg" : "");
   return (
     <Layout title="対局一覧">
       <h2>対局一覧</h2>
       {byUuid.size === 0 ? (
         <p>まだ対局が記録されていません。</p>
       ) : (
-        <div class="game-grid">
-          {[...byUuid.entries()].map(([uuid, rows]) => (
-            <div class="game-card">
-              <div class="game-card-head">
-                <span>{fmtDate(rows[0].start_time)}</span>
-                <span class="muted">
-                  {MODE_NAMES[rows[0].mode] ?? rows[0].mode}
-                  {" / "}
-                  <a href={`/games/${uuid}`}>詳細</a>
-                </span>
-              </div>
-              <table>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr>
-                      <td class="rank">{r.rank}</td>
-                      <td class="name">{r.nickname}</td>
-                      <td>{r.raw_score.toLocaleString()}</td>
-                      <PointCell point={r.point} />
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
+        <div class="matrix-wrap">
+          <table class="matrix">
+            <thead>
+              <tr>
+                <th>日時</th>
+                {cols.map((c) => (
+                  <th>{c.name}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[...byUuid.entries()].map(([uuid, rows]) => {
+                const byAccount = new Map(rows.map((r) => [r.account_id, r]));
+                return (
+                  <tr>
+                    <td>
+                      <a href={`/games/${uuid}`}>{fmtDateShort(rows[0].start_time)}</a>
+                      <span class="muted">{" "}{MODE_NAMES[rows[0].mode] ?? rows[0].mode}</span>
+                    </td>
+                    {cols.map((c) => {
+                      const r = byAccount.get(c.accountId);
+                      if (!r) return <td class="muted">-</td>;
+                      return (
+                        <td class={`${cls(r.point)}${r.rank === 1 ? " win" : ""}`}>
+                          {fmtPoint(r.point)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>合計</td>
+                {cols.map((c) => (
+                  <td class={cls(c.total)}>{fmtPoint(c.total)}</td>
+                ))}
+              </tr>
+            </tfoot>
+          </table>
         </div>
       )}
     </Layout>
