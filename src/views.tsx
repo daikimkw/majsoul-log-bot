@@ -25,6 +25,13 @@ thead { background: #8882; }
 .bookmarklet { display: inline-block; padding: 8px 16px; border: 1px solid #888; border-radius: 6px; background: #8881; font-weight: bold; }
 input[type="password"] { padding: 6px 8px; font-size: 14px; width: 280px; }
 ol li { margin-bottom: 8px; }
+.game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.game-card { border: 1px solid #8884; border-radius: 8px; padding: 10px 12px; }
+.game-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.game-card table { margin: 0; }
+.game-card td { border: none; padding: 3px 4px; }
+.game-card .rank { color: #888; width: 1px; }
+.game-card .name { text-align: left; width: 100%; }
 `;
 
 export const Layout: FC<PropsWithChildren<{ title?: string }>> = ({ title, children }) => (
@@ -218,32 +225,32 @@ export const GamesPage: FC<{ games: GameListRow[] }> = ({ games }) => {
       {byUuid.size === 0 ? (
         <p>まだ対局が記録されていません。</p>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>日時</th>
-              <th>ルール</th>
-              <th>結果（順位順）</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...byUuid.entries()].map(([uuid, rows]) => (
-              <tr>
-                <td>{fmtDate(rows[0].start_time)}</td>
-                <td>{MODE_NAMES[rows[0].mode] ?? rows[0].mode}</td>
-                <td style="text-align:left">
-                  {rows
-                    .map((r) => `${r.nickname} ${r.raw_score.toLocaleString()} (${fmtPoint(r.point)})`)
-                    .join(" / ")}
-                </td>
-                <td>
+        <div class="game-grid">
+          {[...byUuid.entries()].map(([uuid, rows]) => (
+            <div class="game-card">
+              <div class="game-card-head">
+                <span>{fmtDate(rows[0].start_time)}</span>
+                <span class="muted">
+                  {MODE_NAMES[rows[0].mode] ?? rows[0].mode}
+                  {" / "}
                   <a href={`/games/${uuid}`}>詳細</a>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </span>
+              </div>
+              <table>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr>
+                      <td class="rank">{r.rank}</td>
+                      <td class="name">{r.nickname}</td>
+                      <td>{r.raw_score.toLocaleString()}</td>
+                      <PointCell point={r.point} />
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
       )}
     </Layout>
   );
