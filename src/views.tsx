@@ -150,6 +150,8 @@ export const StatsPage: FC<{ stats: PlayerStatsRow[]; history: PointHistoryRow[]
             <th>プレイヤー</th>
             <th>試合</th>
             <th>ポイント</th>
+            <th>素点pt</th>
+            <th>平均素点</th>
             <th>平均順位</th>
             <th>1着</th>
             <th>2着</th>
@@ -158,6 +160,7 @@ export const StatsPage: FC<{ stats: PlayerStatsRow[]; history: PointHistoryRow[]
             <th>和了率</th>
             <th>放銃率</th>
             <th>立直率</th>
+            <th>黙聴率</th>
             <th>副露率</th>
             <th>平均和了点</th>
             <th>平均放銃点</th>
@@ -169,6 +172,8 @@ export const StatsPage: FC<{ stats: PlayerStatsRow[]; history: PointHistoryRow[]
               <td>{s.nickname}</td>
               <td>{s.game_count}</td>
               <PointCell point={s.total_point} />
+              <PointCell point={Math.round(((s.raw_score_sum - 30000 * s.game_count) / 1000) * 10) / 10} />
+              <td>{Math.round(s.raw_score_sum / s.game_count).toLocaleString()}</td>
               <td>{s.avg_rank.toFixed(2)}</td>
               <td>{s.rank1}</td>
               <td>{s.rank2}</td>
@@ -177,6 +182,7 @@ export const StatsPage: FC<{ stats: PlayerStatsRow[]; history: PointHistoryRow[]
               <td>{pct(s.win_count, s.kyoku_count)}</td>
               <td>{pct(s.deal_in_count, s.kyoku_count)}</td>
               <td>{pct(s.riichi_count, s.kyoku_count)}</td>
+              <td>{pct(s.dama_count, s.kyoku_count)}</td>
               <td>{pct(s.fuuro_count, s.kyoku_count)}</td>
               <td>{s.win_count > 0 ? Math.round(s.win_point_sum / s.win_count) : "-"}</td>
               <td>{s.deal_in_count > 0 ? Math.round(s.deal_in_point_sum / s.deal_in_count) : "-"}</td>
@@ -193,7 +199,8 @@ export const StatsPage: FC<{ stats: PlayerStatsRow[]; history: PointHistoryRow[]
     )}
     <p class="muted">
       ポイントはMリーグ式（25,000点持ち30,000点返し・ウマ30-10・オカ20、同点は順位点を等分）。
-      和了率などの分母は局数です。CPUは席順にCPU1, CPU2…として対局をまたいで合算されます。
+      素点ptは順位点（ウマ・オカ）を除いた素点部分の累計（(素点−30,000)÷1,000の合計）。
+      和了率などの分母は局数です。CPUはキャラ単位で対局をまたいで合算されます（同名キャラは同一個体として扱います）。
     </p>
   </Layout>
 );
@@ -322,6 +329,7 @@ export const GamePage: FC<{ rows: GameResultRow[]; error?: string }> = ({ rows, 
           <th>ツモ</th>
           <th>放銃</th>
           <th>立直</th>
+          <th>黙聴</th>
           <th>副露</th>
           <th>和了点計</th>
           <th>放銃点計</th>
@@ -338,6 +346,7 @@ export const GamePage: FC<{ rows: GameResultRow[]; error?: string }> = ({ rows, 
             <td>{r.tsumo_count}</td>
             <td>{r.deal_in_count}</td>
             <td>{r.riichi_count}</td>
+            <td>{r.dama_count}</td>
             <td>{r.fuuro_count}</td>
             <td>{r.win_point_sum.toLocaleString()}</td>
             <td>{r.deal_in_point_sum.toLocaleString()}</td>

@@ -73,12 +73,16 @@ describe("parsePaipu", () => {
     expect(bySeat.get(1)!.tsumoCount).toBe(0);
     expect(bySeat.get(1)!.riichiCount).toBe(1);
     expect(bySeat.get(1)!.winPointSum).toBe(9000);
+    // 立直和了なので黙聴ではない
+    expect(bySeat.get(1)!.damaCount).toBe(0);
 
     // seat0: 放銃1回（直前の打牌者）、ツモ和了1回
     expect(bySeat.get(0)!.dealInCount).toBe(1);
     expect(bySeat.get(0)!.dealInPointSum).toBe(8000);
     expect(bySeat.get(0)!.winCount).toBe(1);
     expect(bySeat.get(0)!.tsumoCount).toBe(1);
+    // 副露も立直もせずツモ和了 → 黙聴1回
+    expect(bySeat.get(0)!.damaCount).toBe(1);
 
     // seat2: 副露1回
     expect(bySeat.get(2)!.fuuroCount).toBe(1);
@@ -133,6 +137,28 @@ describe("parsePaipu", () => {
     expect(cpus).toEqual([
       { accountId: -1, seat: 1, nickname: "CPU1" },
       { accountId: -2, seat: 3, nickname: "CPU2" },
+    ]);
+  });
+
+  it("robotsがある場合はcharidをキーにキャラ名で記録する", () => {
+    const head = makeHead({
+      accounts: [
+        { account_id: 101, seat: 0, nickname: "A" },
+        { account_id: 102, seat: 2, nickname: "B" },
+      ],
+      robots: [
+        { account_id: 1, seat: 1, character: { charid: 200002 } },
+        { account_id: 2, seat: 3, character: { charid: 200001 } },
+      ],
+    });
+    const game = parsePaipu({ head, records });
+    const cpus = game.players
+      .filter((p) => p.accountId < 0)
+      .sort((a, b) => a.seat - b.seat);
+    // account_id=-charid、表示名はキャラ名。対局をまたいでも同じcharidで合算される
+    expect(cpus).toEqual([
+      { accountId: -200002, seat: 1, nickname: "二階堂美樹" },
+      { accountId: -200001, seat: 3, nickname: "一姫" },
     ]);
   });
 

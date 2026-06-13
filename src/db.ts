@@ -5,6 +5,7 @@ export interface PlayerStatsRow {
   nickname: string;
   game_count: number;
   total_point: number;
+  raw_score_sum: number;
   avg_rank: number;
   rank1: number;
   rank2: number;
@@ -16,6 +17,7 @@ export interface PlayerStatsRow {
   deal_in_count: number;
   riichi_count: number;
   fuuro_count: number;
+  dama_count: number;
   win_point_sum: number;
   deal_in_point_sum: number;
 }
@@ -48,6 +50,7 @@ export interface GameResultRow {
   deal_in_count: number;
   riichi_count: number;
   fuuro_count: number;
+  dama_count: number;
   win_point_sum: number;
   deal_in_point_sum: number;
 }
@@ -74,12 +77,12 @@ export async function saveGame(db: D1Database, game: ParsedGame): Promise<boolea
         `INSERT INTO game_results (
           game_uuid, account_id, seat, rank, raw_score, point,
           kyoku_count, win_count, tsumo_count, deal_in_count,
-          riichi_count, fuuro_count, win_point_sum, deal_in_point_sum
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          riichi_count, fuuro_count, dama_count, win_point_sum, deal_in_point_sum
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).bind(
         game.uuid, seatToPlayer.get(r.seat)!.accountId, r.seat, r.rank, r.rawScore, r.point,
         r.kyokuCount, r.winCount, r.tsumoCount, r.dealInCount,
-        r.riichiCount, r.fuuroCount, r.winPointSum, r.dealInPointSum,
+        r.riichiCount, r.fuuroCount, r.damaCount, r.winPointSum, r.dealInPointSum,
       ),
     ),
   ];
@@ -123,6 +126,7 @@ export async function fetchPlayerStats(db: D1Database): Promise<PlayerStatsRow[]
         p.account_id, p.nickname,
         COUNT(*) AS game_count,
         ROUND(SUM(r.point), 1) AS total_point,
+        SUM(r.raw_score) AS raw_score_sum,
         ROUND(AVG(r.rank), 2) AS avg_rank,
         SUM(r.rank = 1) AS rank1,
         SUM(r.rank = 2) AS rank2,
@@ -134,6 +138,7 @@ export async function fetchPlayerStats(db: D1Database): Promise<PlayerStatsRow[]
         SUM(r.deal_in_count) AS deal_in_count,
         SUM(r.riichi_count) AS riichi_count,
         SUM(r.fuuro_count) AS fuuro_count,
+        SUM(r.dama_count) AS dama_count,
         SUM(r.win_point_sum) AS win_point_sum,
         SUM(r.deal_in_point_sum) AS deal_in_point_sum
       FROM game_results r
@@ -167,7 +172,7 @@ export async function fetchGame(db: D1Database, uuid: string): Promise<GameResul
       `SELECT g.uuid, g.start_time, g.end_time, g.mode,
         r.seat, p.nickname, r.account_id, r.rank, r.raw_score, r.point,
         r.kyoku_count, r.win_count, r.tsumo_count, r.deal_in_count,
-        r.riichi_count, r.fuuro_count, r.win_point_sum, r.deal_in_point_sum
+        r.riichi_count, r.fuuro_count, r.dama_count, r.win_point_sum, r.deal_in_point_sum
       FROM games g
       JOIN game_results r ON r.game_uuid = g.uuid
       JOIN players p ON p.account_id = r.account_id
