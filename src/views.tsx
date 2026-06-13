@@ -270,7 +270,7 @@ export const GamesPage: FC<{ games: GameListRow[] }> = ({ games }) => {
                       if (!r) return <td class="muted">-</td>;
                       return (
                         <td class={`${cls(r.point)}${r.rank === 1 ? " win" : ""}`}>
-                          {fmtPoint(r.point)}
+                          <span class="muted">{r.rank}位</span> {fmtPoint(r.point)}
                         </td>
                       );
                     })}
